@@ -1,34 +1,39 @@
-FROM centos:7
+FROM openjdk:8-alpine as builder
 
 LABEL maintainer="Clement Laforet <sheepkiller@cultdeadsheep.org>"
 
-ARG KM_VERSION=1.3.1.8
+ADD ./home/ /root/
 
-ENV JAVA_HOME=/usr/java/default/ \
-    ZK_HOSTS=localhost:2181 \
-    KM_REVISION=97329cc8bf462723232ee73dc6702c064b5908eb \
-    KM_CONFIGFILE="conf/application.conf"
+ARG KM_VERSION=1.3.1.8
 
 ADD start-kafka-manager.sh /kafka-manager-${KM_VERSION}/start-kafka-manager.sh
 
-RUN yum update -y && \
-    yum install -y java-1.8.0-openjdk-headless && \
-    yum clean all && \
-    yum install -y java-1.8.0-openjdk-devel git wget unzip which && \
+RUN apk add --update bash git wget unzip && \
     mkdir -p /tmp && \
     cd /tmp && \
     git clone https://github.com/yahoo/kafka-manager && \
-    cd /tmp/kafka-manager && \
-    git checkout ${KM_REVISION} && \
+    cd kafka-manager && \
+    git checkout ${KM_VERSION} && \
     echo 'scalacOptions ++= Seq("-Xmax-classfile-name", "200")' >> build.sbt && \
     ./sbt clean dist && \
     unzip -q -d / ./target/universal/kafka-manager-${KM_VERSION}.zip && \
     rm -fr /tmp/* /root/.sbt /root/.ivy2 && \
     chmod +x /kafka-manager-${KM_VERSION}/start-kafka-manager.sh && \
-    yum autoremove -y java-1.8.0-openjdk-devel git wget unzip which && \
-    yum clean all
+    mv /kafka-manager-${KM_VERSION} /km && \
+    #rm -rf /tmp/* $HOME/.sbt $HOME/.ivy2 && \
+    echo "${KM_VERSION}" > /km/VERSION
 
-WORKDIR /kafka-manager-${KM_VERSION}
+###############################################################################
+FROM openjdk:8-jre-alpine
+
+ENV KM_CONFIGFILE="conf/application.conf"
+
+RUN apk add --update bash
+
+COPY --from=builder /km/ /km/
+
+WORKDIR /km
+ENV KM_HOME=/km
 
 EXPOSE 9000
 ENTRYPOINT ["./start-kafka-manager.sh"]

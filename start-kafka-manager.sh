@@ -1,11 +1,22 @@
-#!/bin/sh
+#!/usr/bin/env bash
 
-if [[ $KM_USERNAME != ''  && $KM_PASSWORD != '' ]]; then
-    sed -i.bak '/^basicAuthentication/d' /kafka-manager-${KM_VERSION}/conf/application.conf
-    echo 'basicAuthentication.enabled=true' >> /kafka-manager-${KM_VERSION}/conf/application.conf
-    echo "basicAuthentication.username=${KM_USERNAME}" >> /kafka-manager-${KM_VERSION}/conf/application.conf
-    echo "basicAuthentication.password=${KM_PASSWORD}" >> /kafka-manager-${KM_VERSION}/conf/application.conf
-    echo 'basicAuthentication.realm="Kafka-Manager"' >> /kafka-manager-${KM_VERSION}/conf/application.conf
+if [[ $KM_HOME = '' ]]; then 
+	KM_HOME=$(pwd)
 fi
 
-exec ./bin/kafka-manager -Dconfig.file=${KM_CONFIGFILE} "${KM_ARGS}" "${@}"
+if [[ $ZK_HOSTS = '' ]]; then 
+	echo "ZK_HOSTS env is not specified"
+	exit 1
+fi
+
+KM_CONFIGFILE=$KM_HOME/conf/application.conf
+
+if [[ $KM_USERNAME != ''  && $KM_PASSWORD != '' ]]; then
+    sed -i.bak '/^basicAuthentication/d' $KM_CONFIGFILE
+    echo 'basicAuthentication.enabled=true' >> $KM_CONFIGFILE
+    echo "basicAuthentication.username=${KM_USERNAME}" >> $KM_CONFIGFILE
+    echo "basicAuthentication.password=${KM_PASSWORD}" >> $KM_CONFIGFILE
+    echo 'basicAuthentication.realm="Kafka-Manager"' >> $KM_CONFIGFILE
+fi
+
+exec $KM_HOME/bin/kafka-manager -Dconfig.file=${KM_CONFIGFILE} "${KM_ARGS}" "${@}"
